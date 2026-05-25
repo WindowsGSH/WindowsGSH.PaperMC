@@ -1,0 +1,228 @@
+{
+  "id": "papermc",
+  "name": "PaperMC",
+  "version": "0.1.0",
+  "author": "Shenniko",
+  "description": "WindowsGSH module for downloading, configuring, launching, backing up, and managing PaperMC servers.",
+  "url": "https://github.com/WindowsGSH/WindowsGSH.PaperMC",
+  "homepage": "https://papermc.io/",
+  "repository": "https://github.com/WindowsGSH/WindowsGSH.PaperMC",
+  "sourceUrl": "https://github.com/WindowsGSH/WindowsGSH.PaperMC",
+  "color": "#1E8449",
+  "type": "csharp",
+  "entry": "WindowsGSH.Modules.PaperMC.PaperMcModule",
+  "platform": "windows",
+  "source": "https://github.com/WindowsGSH/WindowsGSH.PaperMC",
+  "entryPoints": {
+    "start": "paper.jar",
+    "processName": "java",
+    "processNames": [ "java", "javaw" ]
+  },
+  "runtime": {
+    "allowsEmbeddedConsole": true,
+    "portIncrements": 1,
+    "queryProtocol": "process",
+    "logPath": "logs/latest.log"
+  },
+  "capabilities": {
+    "directConnection": true,
+    "consoleCommands": true,
+    "requiresJava": true,
+    "minimumJavaMajor": 21
+  },
+  "configFiles": [
+    "server.properties",
+    "eula.txt"
+  ],
+  "configFields": [
+    {
+      "key": "server.name",
+      "label": "Server Name",
+      "type": "Text",
+      "defaultValue": "PaperMC Server",
+      "required": true,
+      "group": "Server"
+    },
+    {
+      "key": "minecraft.version",
+      "label": "Minecraft Version",
+      "type": "Text",
+      "defaultValue": "1.21.11",
+      "required": true,
+      "group": "Paper"
+    },
+    {
+      "key": "paper.build",
+      "label": "Paper Build",
+      "type": "Text",
+      "defaultValue": "latest",
+      "group": "Paper"
+    },
+    {
+      "key": "java.path",
+      "label": "Java Path",
+      "type": "Text",
+      "defaultValue": "",
+      "description": "Optional. Leave blank to use JAVA_HOME or java.exe on PATH.",
+      "group": "Java"
+    },
+    {
+      "key": "java.xms",
+      "label": "Initial Memory",
+      "type": "Text",
+      "defaultValue": "1G",
+      "required": true,
+      "validationPattern": "^[0-9]+[GgMm]$",
+      "validationMessage": "Initial Memory must look like 1G or 1024M.",
+      "group": "Java"
+    },
+    {
+      "key": "java.xmx",
+      "label": "Maximum Memory",
+      "type": "Text",
+      "defaultValue": "4G",
+      "required": true,
+      "validationPattern": "^[0-9]+[GgMm]$",
+      "validationMessage": "Maximum Memory must look like 4G or 4096M.",
+      "group": "Java"
+    },
+    {
+      "key": "server.jar",
+      "label": "Server Jar",
+      "type": "Text",
+      "defaultValue": "paper.jar",
+      "required": true,
+      "group": "Java"
+    },
+    {
+      "key": "server.additionalJvmArgs",
+      "label": "Additional JVM Args",
+      "type": "CommandLine",
+      "defaultValue": "",
+      "group": "Java"
+    },
+    {
+      "key": "server.additionalServerArgs",
+      "label": "Additional Server Args",
+      "type": "CommandLine",
+      "defaultValue": "",
+      "group": "Java"
+    },
+    {
+      "key": "server.port",
+      "label": "Server Port",
+      "type": "Port",
+      "defaultValue": 25565,
+      "required": true,
+      "minimum": 1,
+      "maximum": 65535,
+      "group": "Network"
+    },
+    {
+      "key": "server.levelName",
+      "label": "Level Name",
+      "type": "Text",
+      "defaultValue": "world",
+      "required": true,
+      "group": "World"
+    },
+    {
+      "key": "server.motd",
+      "label": "MOTD",
+      "type": "Text",
+      "defaultValue": "A PaperMC Server",
+      "group": "World"
+    },
+    {
+      "key": "server.onlineMode",
+      "label": "Online Mode",
+      "type": "Boolean",
+      "defaultValue": true,
+      "group": "World"
+    },
+    {
+      "key": "server.maxPlayers",
+      "label": "Max Players",
+      "type": "Number",
+      "defaultValue": 20,
+      "minimum": 1,
+      "maximum": 1000,
+      "group": "World"
+    },
+    {
+      "key": "rcon.enabled",
+      "label": "Enable RCON",
+      "type": "Boolean",
+      "defaultValue": false,
+      "group": "RCON"
+    },
+    {
+      "key": "rcon.port",
+      "label": "RCON Port",
+      "type": "Port",
+      "defaultValue": 25575,
+      "minimum": 1,
+      "maximum": 65535,
+      "group": "RCON",
+      "visibleWhen": {
+        "key": "rcon.enabled",
+        "isTruthy": true
+      }
+    },
+    {
+      "key": "rcon.password",
+      "label": "RCON Password",
+      "type": "Password",
+      "defaultValue": "",
+      "group": "RCON",
+      "visibleWhen": {
+        "key": "rcon.enabled",
+        "isTruthy": true
+      }
+    },
+    {
+      "key": "query.enabled",
+      "label": "Enable Query",
+      "type": "Boolean",
+      "defaultValue": false,
+      "group": "Query"
+    },
+    {
+      "key": "query.port",
+      "label": "Query Port",
+      "type": "Port",
+      "defaultValue": 25565,
+      "minimum": 1,
+      "maximum": 65535,
+      "group": "Query",
+      "visibleWhen": {
+        "key": "query.enabled",
+        "isTruthy": true
+      }
+    },
+    {
+      "key": "eula.accepted",
+      "label": "Accept Minecraft EULA",
+      "type": "Boolean",
+      "defaultValue": false,
+      "description": "Ticking this confirms you accept Mojang's Minecraft EULA for this server.",
+      "group": "EULA",
+      "restartRequired": true
+    }
+  ],
+  "backupTargets": [
+    { "key": "world", "label": "World", "path": "world", "type": "directory", "required": true },
+    { "key": "world_nether", "label": "Nether", "path": "world_nether", "type": "directory" },
+    { "key": "world_the_end", "label": "The End", "path": "world_the_end", "type": "directory" },
+    { "key": "properties", "label": "Server Properties", "path": "server.properties", "type": "file" },
+    { "key": "eula", "label": "EULA", "path": "eula.txt", "type": "file" },
+    { "key": "ops", "label": "Operators", "path": "ops.json", "type": "file" },
+    { "key": "whitelist", "label": "Whitelist", "path": "whitelist.json", "type": "file" },
+    { "key": "banned_players", "label": "Banned Players", "path": "banned-players.json", "type": "file" },
+    { "key": "banned_ips", "label": "Banned IPs", "path": "banned-ips.json", "type": "file" },
+    { "key": "plugins", "label": "Plugins", "path": "plugins", "type": "directory" },
+    { "key": "config", "label": "Config", "path": "config", "type": "directory" }
+  ],
+  "addons": []
+}
+
