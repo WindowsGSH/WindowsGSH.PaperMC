@@ -42,14 +42,12 @@ Import `PaperMC.mod` directly, or import the repository root and let WindowsGSH 
 
 - `minecraft.version`: Minecraft version to download Paper for.
 - `paper.build`: Paper build number, or `latest`.
-- `java.path`: optional Java executable path. Leave blank to use `JAVA_HOME` or `java.exe` on `PATH`.
-- `java.xms` and `java.xmx`: Java memory settings.
+- Java runtime, memory, and additional JVM arguments use WindowsGSH's shared per-server Java settings.
 - `server.jar`: jar file name, normally `paper.jar`.
 - `server.port`: Minecraft server port.
 - `server.levelName`: world folder name.
 - `server.motd`: message of the day.
 - `eula.accepted`: confirms you accept Mojang's Minecraft EULA.
-- `server.additionalJvmArgs`: optional extra JVM arguments.
 - `server.additionalServerArgs`: optional extra server arguments.
 
 ## Console, Query, And RCON

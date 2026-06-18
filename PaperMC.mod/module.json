@@ -59,46 +59,11 @@
       "group": "Paper"
     },
     {
-      "key": "java.path",
-      "label": "Java Path",
-      "type": "Text",
-      "defaultValue": "",
-      "description": "Optional. Leave blank to use JAVA_HOME or java.exe on PATH.",
-      "group": "Java"
-    },
-    {
-      "key": "java.xms",
-      "label": "Initial Memory",
-      "type": "Text",
-      "defaultValue": "1G",
-      "required": true,
-      "validationPattern": "^[0-9]+[GgMm]$",
-      "validationMessage": "Initial Memory must look like 1G or 1024M.",
-      "group": "Java"
-    },
-    {
-      "key": "java.xmx",
-      "label": "Maximum Memory",
-      "type": "Text",
-      "defaultValue": "4G",
-      "required": true,
-      "validationPattern": "^[0-9]+[GgMm]$",
-      "validationMessage": "Maximum Memory must look like 4G or 4096M.",
-      "group": "Java"
-    },
-    {
       "key": "server.jar",
       "label": "Server Jar",
       "type": "Text",
       "defaultValue": "paper.jar",
       "required": true,
-      "group": "Java"
-    },
-    {
-      "key": "server.additionalJvmArgs",
-      "label": "Additional JVM Args",
-      "type": "CommandLine",
-      "defaultValue": "",
       "group": "Java"
     },
     {

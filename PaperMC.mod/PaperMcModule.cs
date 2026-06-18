@@ -6,7 +6,6 @@ using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using WindowsGSH.Core.Config;
@@ -19,7 +18,7 @@ namespace WindowsGSH.Modules.PaperMC;
 
 public sealed partial class PaperMcModule : IGameServerModule, IManifestBackedModule, IModuleConsoleCommandCapability, IModuleUpdateCapability
 {
-    private static readonly Regex MemoryPattern = new("^[0-9]+[GgMm]$", RegexOptions.Compiled);
+    private readonly JavaRuntimeLocator _javaRuntimeLocator;
     private static readonly IReadOnlyDictionary<string, string> PropertiesMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["server.port"] = "server-port",
@@ -38,6 +37,16 @@ public sealed partial class PaperMcModule : IGameServerModule, IManifestBackedMo
     private string _moduleDirectory = AppContext.BaseDirectory;
 
     private ModuleManifest Manifest => _manifest ??= ModuleManifest.Load(Path.Combine(_moduleDirectory, "module.json"));
+
+    public PaperMcModule()
+        : this(new JavaRuntimeLocator())
+    {
+    }
+
+    public PaperMcModule(JavaRuntimeLocator javaRuntimeLocator)
+    {
+        _javaRuntimeLocator = javaRuntimeLocator;
+    }
 
     public string Id => Manifest.Id;
 
@@ -275,9 +284,9 @@ public sealed partial class PaperMcModule : IGameServerModule, IManifestBackedMo
         return Task.FromResult(new QueryResult(status, Message: "Process status only."));
     }
 
-    private static void ValidateStart(ServerInstance instance, out JavaRuntimeInfo java, out string jarPath)
+    private void ValidateStart(ServerInstance instance, out JavaRuntimeInfo java, out string jarPath)
     {
-        java = new JavaRuntimeLocator().Locate(GetSetting(instance, "java.path", string.Empty));
+        java = _javaRuntimeLocator.Locate(instance.AppSettings.Java.RuntimePath);
         jarPath = PaperMcStartValidator.Validate(instance, java).JarPath;
     }
 
@@ -324,33 +333,23 @@ public sealed partial class PaperMcModule : IGameServerModule, IManifestBackedMo
     private static string BuildArguments(ServerInstance instance, string jarPath)
     {
         return PaperMcLaunchBuilder.Build(new PaperMcLaunchOptions(
-            Xms: GetSetting(instance, "java.xms", "1G"),
-            Xmx: GetSetting(instance, "java.xmx", "4G"),
+            Java: instance.AppSettings.Java,
             JarPath: jarPath,
-            AdditionalJvmArgs: GetSetting(instance, "server.additionalJvmArgs", string.Empty),
             AdditionalServerArgs: GetSetting(instance, "server.additionalServerArgs", string.Empty)));
     }
 
 }
 
 public sealed record PaperMcLaunchOptions(
-    string Xms,
-    string Xmx,
+    ServerJavaSettings Java,
     string JarPath,
-    string AdditionalJvmArgs,
     string AdditionalServerArgs);
 
 public static class PaperMcLaunchBuilder
 {
     public static string Build(PaperMcLaunchOptions options)
     {
-        var parts = new List<string>
-        {
-            "-Xms" + options.Xms,
-            "-Xmx" + options.Xmx
-        };
-
-        AddRaw(parts, options.AdditionalJvmArgs);
+        var parts = new List<string> { JavaRuntimeManager.BuildJvmCommandLine(options.Java) };
         parts.Add("-jar");
         parts.Add(WindowsCommandLineEscaper.Quote(options.JarPath));
         parts.Add("--nogui");
@@ -371,8 +370,6 @@ public sealed record PaperMcStartValidation(JavaRuntimeInfo Java, string JarPath
 
 public static class PaperMcStartValidator
 {
-    private static readonly Regex MemoryPattern = new("^[0-9]+[GgMm]$", RegexOptions.Compiled);
-
     public static PaperMcStartValidation Validate(ServerInstance instance, JavaRuntimeInfo java)
     {
         if (!ReadBool(instance, "eula.accepted", defaultValue: false))
@@ -380,8 +377,7 @@ public static class PaperMcStartValidator
             throw new InvalidOperationException("Accept Minecraft's EULA before starting this PaperMC server.");
         }
 
-        ValidateMemory(GetSetting(instance, "java.xms", "1G"), "Initial Memory");
-        ValidateMemory(GetSetting(instance, "java.xmx", "4G"), "Maximum Memory");
+        JavaRuntimeManager.ValidateMemory(instance.AppSettings.Java);
 
         if (!java.Found)
         {
@@ -430,14 +426,6 @@ public static class PaperMcStartValidator
         return minecraftVersion.StartsWith("26.", StringComparison.OrdinalIgnoreCase) ? 25 : 21;
     }
 
-    private static void ValidateMemory(string value, string label)
-    {
-        if (!MemoryPattern.IsMatch(value))
-        {
-            throw new InvalidOperationException($"{label} must look like 1G or 1024M.");
-        }
-    }
-
     private static string GetSetting(ServerInstance instance, string key, string fallback)
     {
         return GetSetting(instance.Settings, key, fallback);
@@ -477,14 +465,6 @@ public sealed partial class PaperMcModule
     {
         var minecraftVersion = GetSetting(instance, "minecraft.version", string.Empty);
         return minecraftVersion.StartsWith("26.", StringComparison.OrdinalIgnoreCase) ? 25 : 21;
-    }
-
-    private static void ValidateMemory(string value, string label)
-    {
-        if (!MemoryPattern.IsMatch(value))
-        {
-            throw new InvalidOperationException($"{label} must look like 1G or 1024M.");
-        }
     }
 
     private static string GetSetting(ServerInstance instance, string key, string fallback)
