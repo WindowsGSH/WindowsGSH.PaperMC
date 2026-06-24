@@ -27,6 +27,7 @@ Import `PaperMC.mod` directly, or import the repository root and let WindowsGSH 
 - Stops gracefully by sending `stop`.
 - Can write RCON settings to `server.properties`.
 - Backs up worlds, properties, EULA, operator/ban/whitelist files, plugins, and config.
+- Supports WindowsGSH existing-server import and WindowsGSM-style `serverfiles` imports.
 
 ## Quick Start
 
@@ -57,6 +58,15 @@ Import `PaperMC.mod` directly, or import the repository root and let WindowsGSH 
 - RCON settings are written to `server.properties`.
 - When `rcon.enabled` is true, WindowsGSH can send manual and scheduled RCON commands through the configured local RCON port.
 - Query can be enabled through `query.enabled` and `query.port`.
+
+## Existing Server Import
+
+Choose **Import Existing** and select either:
+
+- a PaperMC server folder containing a Paper jar; or
+- a WindowsGSM server folder containing `serverfiles` with a Paper jar.
+
+WindowsGSH detects `paper.jar`, `paper*.jar`, or another jar in the selected install folder and previews values from `server.properties` when present.
 
 ## Trust Note
 
