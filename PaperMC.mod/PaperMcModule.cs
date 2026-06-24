@@ -16,7 +16,12 @@ using WindowsGSH.Core.Servers;
 
 namespace WindowsGSH.Modules.PaperMC;
 
-public sealed partial class PaperMcModule : IGameServerModule, IManifestBackedModule, IModuleConsoleCommandCapability, IModuleUpdateCapability
+public sealed partial class PaperMcModule :
+    IGameServerModule,
+    IManifestBackedModule,
+    IModuleConsoleCommandCapability,
+    IModuleUpdateCapability,
+    IModuleExistingServerImportCapability
 {
     private readonly JavaRuntimeLocator _javaRuntimeLocator;
     private static readonly IReadOnlyDictionary<string, string> PropertiesMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -66,6 +71,50 @@ public sealed partial class PaperMcModule : IGameServerModule, IManifestBackedMo
         _moduleDirectory = moduleDirectory;
     }
 
+    public bool CanImport(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var installPath = ResolveExistingInstallPath(path);
+        return TryResolveServerJarPath(installPath, new Dictionary<string, object?>()) != null;
+    }
+
+    public async Task<ModuleExistingServerImportProbe> PreviewImportAsync(
+        string path,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var sourcePath = Path.GetFullPath(path);
+        var installPath = ResolveExistingInstallPath(sourcePath);
+        var probeInstance = new ServerInstance(
+            Id: Path.GetFileName(sourcePath),
+            Name: Name,
+            ModuleId: Id,
+            ServerFolder: sourcePath,
+            InstallPath: installPath,
+            ConfigPath: Path.Combine(sourcePath, "ServerConfig.json"),
+            Settings: new Dictionary<string, object?>());
+
+        var settings = new Dictionary<string, object?>(
+            await ReadConfigFileSettingsAsync(probeInstance, cancellationToken),
+            StringComparer.OrdinalIgnoreCase);
+        var warnings = new List<string>();
+        if (!File.Exists(GetPropertiesPath(probeInstance)))
+        {
+            warnings.Add("server.properties was not found. WindowsGSH will use module defaults for missing values.");
+        }
+
+        return new ModuleExistingServerImportProbe(
+            SourceName: GetSetting(settings, "server.name", GetSetting(settings, "server.motd", Path.GetFileName(sourcePath))),
+            InstallPath: installPath,
+            Settings: settings,
+            Warnings: warnings);
+    }
+
     public IReadOnlyList<ConfigFieldDefinition> GetConfigFields() => Manifest.ToConfigFields();
 
     public IReadOnlyList<ServerAddonDefinition> GetAddonDefinitions() => Manifest.ToAddons();
@@ -102,26 +151,30 @@ public sealed partial class PaperMcModule : IGameServerModule, IManifestBackedMo
 
     public Task<IReadOnlyDictionary<string, object?>> ReadConfigFileSettingsAsync(ServerInstance instance, CancellationToken cancellationToken)
     {
+        var settings = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        var jarPath = TryResolveServerJarPath(instance.InstallPath, settings);
+        if (!string.IsNullOrWhiteSpace(jarPath))
+        {
+            settings["server.jar"] = Path.GetRelativePath(instance.InstallPath, jarPath);
+        }
+
         var path = GetPropertiesPath(instance);
         if (!File.Exists(path))
         {
-            return Task.FromResult<IReadOnlyDictionary<string, object?>>(new Dictionary<string, object?>());
+            return Task.FromResult<IReadOnlyDictionary<string, object?>>(settings);
         }
 
         var properties = PropertiesFile.Load(path);
-        var settings = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["server.port"] = properties.GetInt32("server-port", 25565),
-            ["server.levelName"] = properties.GetString("level-name", "world"),
-            ["server.motd"] = properties.GetString("motd", "A PaperMC Server"),
-            ["server.onlineMode"] = properties.GetBoolean("online-mode", true),
-            ["server.maxPlayers"] = properties.GetInt32("max-players", 20),
-            ["rcon.enabled"] = properties.GetBoolean("enable-rcon"),
-            ["rcon.port"] = properties.GetInt32("rcon.port", 25575),
-            ["rcon.password"] = properties.GetString("rcon.password"),
-            ["query.enabled"] = properties.GetBoolean("enable-query"),
-            ["query.port"] = properties.GetInt32("query.port", 25565)
-        };
+        settings["server.port"] = properties.GetInt32("server-port", 25565);
+        settings["server.levelName"] = properties.GetString("level-name", "world");
+        settings["server.motd"] = properties.GetString("motd", "A PaperMC Server");
+        settings["server.onlineMode"] = properties.GetBoolean("online-mode", true);
+        settings["server.maxPlayers"] = properties.GetInt32("max-players", 20);
+        settings["rcon.enabled"] = properties.GetBoolean("enable-rcon");
+        settings["rcon.port"] = properties.GetInt32("rcon.port", 25575);
+        settings["rcon.password"] = properties.GetString("rcon.password");
+        settings["query.enabled"] = properties.GetBoolean("enable-query");
+        settings["query.port"] = properties.GetInt32("query.port", 25565);
 
         return Task.FromResult<IReadOnlyDictionary<string, object?>>(settings);
     }
@@ -239,7 +292,7 @@ public sealed partial class PaperMcModule : IGameServerModule, IManifestBackedMo
 
     public bool IsInstallValid(ServerInstance instance)
     {
-        return File.Exists(ResolveJarPath(instance));
+        return TryResolveServerJarPath(instance.InstallPath, instance.Settings) != null;
     }
 
     public string? GetConsoleLogPath(ServerInstance instance)
@@ -319,6 +372,62 @@ public sealed partial class PaperMcModule : IGameServerModule, IManifestBackedMo
     private static string GetPropertiesPath(ServerInstance instance)
     {
         return Path.Combine(instance.InstallPath, "server.properties");
+    }
+
+    private static string ResolveExistingInstallPath(string path)
+    {
+        var sourcePath = Path.GetFullPath(path);
+        if (TryResolveServerJarPath(sourcePath, new Dictionary<string, object?>()) != null)
+        {
+            return sourcePath;
+        }
+
+        var serverFilesPath = Path.Combine(sourcePath, "serverfiles");
+        return TryResolveServerJarPath(serverFilesPath, new Dictionary<string, object?>()) != null
+            ? serverFilesPath
+            : sourcePath;
+    }
+
+    private static string? TryResolveServerJarPath(
+        string installPath,
+        IReadOnlyDictionary<string, object?> settings)
+    {
+        var configuredJar = GetSetting(settings, "server.jar", string.Empty);
+        if (!string.IsNullOrWhiteSpace(configuredJar))
+        {
+            var configuredPath = Path.IsPathRooted(configuredJar)
+                ? Path.GetFullPath(configuredJar)
+                : Path.GetFullPath(Path.Combine(installPath, configuredJar));
+            if (IsPathInsideOrEqual(installPath, configuredPath) && File.Exists(configuredPath))
+            {
+                return configuredPath;
+            }
+        }
+
+        var defaultJar = Path.Combine(installPath, "paper.jar");
+        if (File.Exists(defaultJar))
+        {
+            return defaultJar;
+        }
+
+        if (!Directory.Exists(installPath))
+        {
+            return null;
+        }
+
+        return Directory.EnumerateFiles(installPath, "paper*.jar", SearchOption.TopDirectoryOnly)
+            .Concat(Directory.EnumerateFiles(installPath, "*.jar", SearchOption.TopDirectoryOnly))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+    }
+
+    private static bool IsPathInsideOrEqual(string parent, string candidate)
+    {
+        var parentPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(parent));
+        var candidatePath = Path.GetFullPath(candidate);
+        return string.Equals(parentPath, candidatePath, StringComparison.OrdinalIgnoreCase) ||
+            candidatePath.StartsWith(parentPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string ToPropertyValue(object value)
